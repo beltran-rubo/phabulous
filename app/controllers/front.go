@@ -22,7 +22,7 @@ func (f *FrontController) getIndex(c *gin.Context) {
 		"messages": []string{
 			"Welcome to the Phabulous API",
 		},
-		"version": "2.4.0-beta1",
+		"version": "2.4.0-beta3",
 	})
 }
 

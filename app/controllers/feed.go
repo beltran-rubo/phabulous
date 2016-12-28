@@ -3,12 +3,16 @@ package controllers
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/etcinit/gonduit/constants"
+	"github.com/etcinit/gonduit/requests"
 	"github.com/etcinit/phabulous/app/bot"
 	"github.com/etcinit/phabulous/app/factories"
 	"github.com/etcinit/phabulous/app/messages"
 	"github.com/etcinit/phabulous/app/resolvers"
 	"github.com/gin-gonic/gin"
 	"github.com/jacobstr/confer"
+	"strings"
+	"regexp"
+	"strconv"
 )
 
 // FeedController handles feed webhook routes
@@ -51,7 +55,44 @@ func (f *FeedController) postReceive(c *gin.Context) {
 	}
 
 	storyText := c.Request.PostForm.Get("storyText")
+	action := f.Config.GetString("channels.action")
+	match, _ := regexp.MatchString(action, storyText)
 
+	if match {
+	        storyText = " " + storyText
+	} else {
+	   f.Logger.Error("NO MATCH: ", storyText, err)
+	   return
+	}
+
+	//Reviewers
+        conn, err := f.Slacker.Factory.Make()
+
+        diffRegexp, _ := regexp.Compile("D([0-9]{1,16})")
+	matchDiff := diffRegexp.MatchString(storyText)
+        if matchDiff {
+            diffIds := diffRegexp.FindStringSubmatch(storyText)
+	    id, _ := strconv.Atoi(diffIds[1])
+            reviewers, _ := conn.DifferentialQuery(requests.DifferentialQueryRequest{
+	    IDs: []uint64{uint64(id)},
+	    })
+	    reviewerNames := []string{}
+
+            for _, reviewerPHID := range (*reviewers)[0].Reviewers {
+	        nameRes, _ := conn.PHIDQuerySingle(reviewerPHID)
+		if err != nil {
+		   return
+		}
+		reviewerNames = append(reviewerNames, "@"+(*nameRes).Name)
+	    }
+
+	    if len((*reviewers)[0].Reviewers) > 0 {
+	        storyText += " " + strings.Join(reviewerNames, ", ")
+	    }
+        } else {
+	    f.Logger.Error("NO DIFF: ", storyText, err)
+	    return
+	}
 	if res.URI != "" {
 		storyText += " (<" + res.URI + "|More info>)"
 	}
