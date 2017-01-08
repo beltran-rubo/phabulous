@@ -55,12 +55,18 @@ func (f *FeedController) postReceive(c *gin.Context) {
 	}
 
 	storyText := c.Request.PostForm.Get("storyText")
-	action := f.Config.GetString("channels.action")
-	match, _ := regexp.MatchString(action, storyText)
+	actionList := f.Config.GetString("channels.actions")
+	action := strings.Split(actionList, ",")
+	matches := 0
+	for i := range action {
+	    match, _ := regexp.MatchString(action[i], storyText)
+	    if match {
+	       matches++
+	       break
+	    }
+	}
 
-	if match {
-	        storyText = " " + storyText
-	} else {
+	if matches == 0 {
 	   f.Logger.Error("NO MATCH: ", storyText, err)
 	   return
 	}
