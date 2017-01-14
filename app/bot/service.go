@@ -50,6 +50,7 @@ func (s *SlackService) SimplePost(
 			Username: user,
 			IconURL:  string(icon),
 			AsUser:   asUser,
+			LinkNames: 1,
 		},
 	)
 }
